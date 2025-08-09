@@ -1,3 +1,17 @@
+export default async function handler(req, res) {
+  console.log("Using Stability API key:", !!process.env.STABILITY_API_KEY);  // <-- Add this line
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const { prompt } = req.body;
+  if (!prompt) {
+    return res.status(400).json({ error: "Prompt is required" });
+  }
+
+  try {
+    // ... rest of your existing code
 // pages/api/generate-image-stability.js
 export default async function handler(req, res) {
   if (req.method !== "POST") {
