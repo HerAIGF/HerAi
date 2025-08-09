@@ -50,12 +50,10 @@ export default async function handler(req, res) {
     }
 
     const data = await response.json();
-    const imageBase64 = data.image; // Base64 encoded string
-    const imageUrl = `data:image/png;base64,${imageBase64}`;
+    const imageBase64 = data.artifacts && data.artifacts[0] && data.artifacts[0].base64;
 
-    res.status(200).json({ imageUrl });
-  } catch (error) {
-    console.error("Image generation error:", error);
-    res.status(500).json({ error: "Failed to generate image" });
-  }
+if (!imageBase64) {
+  throw new Error("No image data found in Stability API response");
 }
+
+const imageUrl = `data:image/png;base64,${imageBase64}`;
