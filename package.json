@@ -1,3 +1,4 @@
+{
   "name": "ai-girlfriends-starter",
   "version": "1.0.0",
   "private": true,
@@ -20,4 +21,4 @@
     "postcss": "^8.4.23",
     "tailwindcss": "^3.4.6"
   }
-
+}
