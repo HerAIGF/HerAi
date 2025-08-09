@@ -2,6 +2,11 @@
   "name": "ai-girlfriends-starter",
   "version": "1.0.0",
   "private": true,
+  {
+  "type": "module",
+  // ...other fields
+}
+
   "scripts": {
     "dev": "next dev",
     "build": "next build",
