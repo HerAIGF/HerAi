@@ -4,8 +4,7 @@
   "private": true,
   {
   "type": "module",
-  // ...other fields
-}
+
 
   "scripts": {
     "dev": "next dev",
