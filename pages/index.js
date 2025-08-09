@@ -1,12 +1,48 @@
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
-const GIRLFRIENDS = [
-  { id: 'maya', name: 'Maya', bio: 'Warm, witty, loves sci-fi.', avatar: '/avatars/maya.jpg' },
-  { id: 'luna', name: 'Luna', bio: 'Playful, adventurous, beach lover.', avatar: '/avatars/luna.jpg' },
-  { id: 'aria', name: 'Aria', bio: 'Sweet, caring, great listener.', avatar: '/avatars/aria.jpg' }
+const GIRLFRIENDS_STATIC = [
+  { id: 'maya', name: 'Maya', bio: 'Warm, witty, loves sci-fi.', prompt: 'Portrait of a warm, witty young woman in sci-fi style' },
+  { id: 'luna', name: 'Luna', bio: 'Playful, adventurous, beach lover.', prompt: 'Portrait of a playful, adventurous young woman on the beach' },
+  { id: 'aria', name: 'Aria', bio: 'Sweet, caring, great listener.', prompt: 'Portrait of a sweet, caring young woman, soft lighting' }
 ];
 
 export default function Home() {
+  const [girlfriends, setGirlfriends] = useState([]);
+
+  useEffect(() => {
+    async function fetchImages() {
+      const updated = await Promise.all(
+        GIRLFRIENDS_STATIC.map(async (gf) => {
+          try {
+            const res = await fetch('/api/generate-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ prompt: gf.prompt }),
+            });
+            const data = await res.json();
+            return {
+              ...gf,
+              avatar: data.imageUrl || '/avatars/default.jpg',
+            };
+          } catch {
+            return {
+              ...gf,
+              avatar: '/avatars/default.jpg',
+            };
+          }
+        })
+      );
+      setGirlfriends(updated);
+    }
+
+    fetchImages();
+  }, []);
+
+  if (girlfriends.length === 0) {
+    return <div>Loading girlfriends...</div>;
+  }
+
   return (
     <div className="min-h-screen p-8">
       <header className="max-w-3xl mx-auto text-center mb-8">
@@ -15,11 +51,10 @@ export default function Home() {
       </header>
 
       <main className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-6">
-        {GIRLFRIENDS.map(g => (
+        {girlfriends.map(g => (
           <Link key={g.id} href={`/signup?gf=${g.id}`} legacyBehavior>
             <a className="block bg-white rounded-xl shadow p-4 hover:shadow-lg transition">
               <div className="h-48 bg-pink-50 rounded-md flex items-center justify-center overflow-hidden">
-                {/* Replace with Image component & real avatars later */}
                 <img src={g.avatar} alt={g.name} className="object-cover h-full w-full" />
               </div>
               <h2 className="text-2xl font-semibold mt-4">{g.name}</h2>
