@@ -1,3 +1,6 @@
+console.log("Received prompt:", prompt);
+console.log("Using Stability API key:", !!process.env.STABILITY_API_KEY);
+
 export default async function handler(req, res) {
   console.log("Using Stability API key:", !!process.env.STABILITY_API_KEY);  // <-- Add this line
 
