@@ -9,38 +9,47 @@ const GIRLFRIENDS_STATIC = [
 
 export default function Home() {
   const [girlfriends, setGirlfriends] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchImages() {
-      const updated = await Promise.all(
-        GIRLFRIENDS_STATIC.map(async (gf) => {
-          try {
-            const res = await fetch('/api/generate-image', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ prompt: gf.prompt }),
-            });
-            const data = await res.json();
-            return {
-              ...gf,
-              avatar: data.imageUrl || '/avatars/default.jpg',
-            };
-          } catch {
-            return {
-              ...gf,
-              avatar: '/avatars/default.jpg',
-            };
-          }
-        })
-      );
-      setGirlfriends(updated);
+      try {
+        const updated = await Promise.all(
+          GIRLFRIENDS_STATIC.map(async (gf) => {
+            try {
+              const res = await fetch('/api/generate-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: gf.prompt }),
+              });
+              const data = await res.json();
+              return {
+                ...gf,
+                avatar: data.imageUrl || '/avatars/default.jpg',
+              };
+            } catch {
+              return {
+                ...gf,
+                avatar: '/avatars/default.jpg',
+              };
+            }
+          })
+        );
+        setGirlfriends(updated);
+      } finally {
+        setLoading(false);
+      }
     }
 
     fetchImages();
   }, []);
 
-  if (girlfriends.length === 0) {
-    return <div>Loading girlfriends...</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-xl">Generating your AI girlfriends...</p>
+      </div>
+    );
   }
 
   return (
@@ -55,11 +64,18 @@ export default function Home() {
           <Link key={g.id} href={`/signup?gf=${g.id}`} legacyBehavior>
             <a className="block bg-white rounded-xl shadow p-4 hover:shadow-lg transition">
               <div className="h-48 bg-pink-50 rounded-md flex items-center justify-center overflow-hidden">
-                <img src={g.avatar} alt={g.name} className="object-cover h-full w-full" />
+                <img
+                  src={g.avatar}
+                  alt={g.name}
+                  className="object-cover h-full w-full"
+                  onError={(e) => (e.target.src = '/avatars/default.jpg')}
+                />
               </div>
               <h2 className="text-2xl font-semibold mt-4">{g.name}</h2>
               <p className="text-gray-600 mt-2">{g.bio}</p>
-              <div className="mt-4 inline-block bg-pink-500 text-white px-4 py-2 rounded">Select {g.name}</div>
+              <div className="mt-4 inline-block bg-pink-500 text-white px-4 py-2 rounded">
+                Select {g.name}
+              </div>
             </a>
           </Link>
         ))}
