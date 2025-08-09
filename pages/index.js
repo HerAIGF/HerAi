@@ -17,7 +17,7 @@ export default function Home() {
         const updated = await Promise.all(
           GIRLFRIENDS_STATIC.map(async (gf) => {
             try {
-              const res = await fetch('/api/generate-image', {
+              const res = await fetch('/api/generate-image-stability', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ prompt: gf.prompt }),
