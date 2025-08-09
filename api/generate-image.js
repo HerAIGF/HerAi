@@ -1,28 +1,42 @@
-import { Configuration, OpenAIApi } from "openai";
-
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-const openai = new OpenAIApi(configuration);
-
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+  if (req.method !== "POST") return res.status(405).end();
+
   const { prompt } = req.body;
-  if (!prompt) return res.status(400).json({ error: "Prompt required" });
 
   try {
-    const response = await openai.createImage({
-      prompt,
-      n: 1,
-      size: "512x512",
-      response_format: "url",
-    });
-    const imageUrl = response.data.data[0].url;
+    const response = await fetch(
+      "https://api.stability.ai/v2beta/stable-image/generate/core",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.STABILITY_API_KEY}`,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt,
+          output_format: "url",
+          aspect_ratio: "1:1",
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("Stability API error:", errText);
+      return res.status(500).json({ error: "Image generation failed" });
+    }
+
+    const data = await response.json();
+    const imageUrl = data?.image ?? null;
+
+    if (!imageUrl) {
+      return res.status(500).json({ error: "No image returned" });
+    }
+
     res.status(200).json({ imageUrl });
-  } catch (error) {
-    console.error("Image generation error:", error);
-    res.status(500).json({ error: "Failed to generate image" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Unexpected server error" });
   }
 }
