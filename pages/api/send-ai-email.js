@@ -1,73 +1,61 @@
-import { createClient } from '@supabase/supabase-js';
-import nodemailer from 'nodemailer';
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import OpenAI from "https://esm.sh/openai@4.0.0";
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
-
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com', // or your SMTP provider
-  port: 465,
-  secure: true, // true for port 465, false for others
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
-
-async function generateEmailContent(name) {
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a warm AI girlfriend named Luna.',
-        },
-        {
-          role: 'user',
-          content: `Write a welcome email to a new user named ${name}, making it friendly and personal.`,
-        },
-      ],
-      max_tokens: 300,
-    }),
-  });
-
-  const data = await response.json();
-  if (!data.choices || data.choices.length === 0) {
-    throw new Error('No content generated from OpenAI');
-  }
-  return data.choices[0].message.content;
-}
-
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const { email, name } = req.body;
-
-  if (!email || !name) {
-    return res.status(400).json({ error: 'Missing email or name' });
-  }
-
+serve(async (req) => {
   try {
-    const emailContent = await generateEmailContent(name);
+    const { email } = await req.json();
 
-    await transporter.sendMail({
-      from: `"Luna - Your AI Girlfriend" <${process.env.SMTP_USER}>`,
-      to: email,
-      subject: 'Welcome to your AI Girlfriend experience!',
-      text: emailContent,
+    if (!email) {
+      return new Response(JSON.stringify({ error: "Email is required" }), { status: 400 });
+    }
+
+    // Initialize OpenAI client
+    const openai = new OpenAI({
+      apiKey: Deno.env.get("OPENAI_API_KEY"),
     });
 
-    res.status(200).json({ message: 'AI welcome email sent!' });
-  } catch (error) {
-    console.error('Email sending error:', error);
-    res.status(500).json({ error: error.message });
-  }
-}
+    // Generate AI welcome message
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "user",
+          content: "Write a short, sweet, and flirty welcome email to a new user.",
+        },
+      ],
+    });
 
+    const aiMessage = completion.choices[0].message.content;
+
+    // Send email via Supabase email API (SMTP must be configured in your Supabase project)
+    const response = await fetch(
+      `${Deno.env.get("SUPABASE_URL")}/rest/v1/rpc/send_email`,
+      {
+        method: "POST",
+        headers: {
+          apikey: Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: email,
+          subject: "💌 Your AI Girlfriend Says Hi",
+          html: `<p>${aiMessage}</p>`,
+          text: aiMessage,
+          from: Deno.env.get("FROM_EMAIL") || "", // your verified sender email
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return new Response(JSON.stringify({ error: errorText }), { status: 500 });
+    }
+
+    return new Response(JSON.stringify({ success: true, message: "Email sent!" }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  }
+});
