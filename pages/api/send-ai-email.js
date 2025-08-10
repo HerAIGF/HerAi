@@ -1,4 +1,9 @@
-import nodemailer from 'nodemailer';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 async function generateEmailContent(name) {
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -44,26 +49,23 @@ export default async function handler(req, res) {
   try {
     const emailContent = await generateEmailContent(name);
 
-    // Create transporter with Gmail SMTP settings
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true, // true for 465
-      auth: {
-        user: process.env.SMTP_USER, // your Gmail email
-        pass: process.env.SMTP_PASS, // your Gmail app password
-      },
-    });
+    const { error } = await supabase
+      .from('mail')
+      .insert([
+        {
+          to: email,
+          subject: 'Welcome to your AI Girlfriend experience!',
+          html: `<p>${emailContent}</p>`,
+          text: emailContent,
+        },
+      ]);
 
-    await transporter.sendMail({
-      from: `"Luna - Your AI Girlfriend" <${process.env.SMTP_USER}>`,
-      to: email,
-      subject: 'Welcome to your AI Girlfriend experience!',
-      html: `<p>${emailContent}</p>`,
-      text: emailContent,
-    });
+    if (error) {
+      console.error('Supabase email error:', error);
+      return res.status(500).json({ error: 'Failed to send email' });
+    }
 
-    res.status(200).json({ message: 'AI welcome email sent via Gmail SMTP!' });
+    res.status(200).json({ message: 'AI welcome email sent!' });
   } catch (error) {
     console.error('Email sending error:', error);
     res.status(500).json({ error: error.message });
