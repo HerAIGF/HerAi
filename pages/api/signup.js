@@ -7,7 +7,6 @@ const FROM_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 const GIRLFRIEND_PRESETS = {
   maya: {
     name: 'Maya',
-    // basic non-explicit default welcome. Replace later with LLM-generated text & moderation.
     welcome: (firstName = '') => `Hey — it’s Maya 😘. So happy you chose me. Text me anytime — I’m here.`,
   },
   luna: {
@@ -25,7 +24,6 @@ export default async function handler(req, res) {
 
   const { email, phone, instagram, girlfriend, ageConfirm, adultConsent } = req.body || {};
 
-  // Basic server-side validation
   if (!email || !phone) return res.status(400).send('Missing email or phone');
   if (!ageConfirm || !adultConsent) return res.status(400).send('Age and consent required');
 
@@ -33,7 +31,7 @@ export default async function handler(req, res) {
   const gf = GIRLFRIEND_PRESETS[gfKey] || GIRLFRIEND_PRESETS.maya;
 
   try {
-    // 1) Insert into Supabase table `users` (create table SQL below)
+    // 1) Insert user data into Supabase
     const insert = await supabaseAdmin.from('users').insert([
       {
         email,
@@ -47,20 +45,19 @@ export default async function handler(req, res) {
 
     if (insert.error) {
       console.error('Supabase insert error', insert.error);
-      // continue — we still try to send SMS, but surface the DB error
+      // we continue despite DB error to still send SMS and email
     }
 
-    // 2) Send Twilio SMS (basic text)
+    // 2) Send Twilio SMS welcome message
     const smsBody = gf.welcome();
 
-    // Twilio: send SMS
     await twilioClient.messages.create({
       from: FROM_NUMBER,
       to: phone,
       body: smsBody
     });
 
-    // Optionally: store the message in a `messages` table
+    // 3) Store SMS message record
     await supabaseAdmin.from('messages').insert([
       {
         user_phone: phone,
@@ -71,6 +68,23 @@ export default async function handler(req, res) {
         created_at: new Date()
       }
     ]);
+
+    // 4) Call AI email sender API to send welcome email
+    try {
+      const emailResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/send-ai-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name: gf.name }),
+      });
+
+      if (!emailResponse.ok) {
+        const errText = await emailResponse.text();
+        console.error('AI email send failed:', errText);
+        // Do not fail whole request due to email error
+      }
+    } catch (emailErr) {
+      console.error('Error calling AI email sender:', emailErr);
+    }
 
     return res.status(200).json({ success: true });
   } catch (err) {
