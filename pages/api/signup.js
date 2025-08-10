@@ -37,7 +37,7 @@ export default async function handler(req, res) {
     girlfriend,
     ageConfirm,
     adultConsent,
-    prompt // optional now
+    prompt // may be missing
   } = req.body || {};
 
   // Basic validation
@@ -51,6 +51,12 @@ export default async function handler(req, res) {
   const gfKey = girlfriend || 'maya';
   const gf = GIRLFRIEND_PRESETS[gfKey] || GIRLFRIEND_PRESETS.maya;
 
+  // If prompt missing, use default welcome
+  const finalPrompt =
+    prompt && prompt.trim().length > 0
+      ? prompt
+      : gf.welcome();
+
   try {
     // 1) Insert user data into Supabase
     const { error: insertError } = await supabaseAdmin
@@ -63,7 +69,7 @@ export default async function handler(req, res) {
           girlfriend: gfKey,
           adult_consent: adultConsent,
           created_at: new Date(),
-          prompt: prompt || null // store if provided
+          prompt: finalPrompt // store the actual message sent
         }
       ]);
 
@@ -72,24 +78,18 @@ export default async function handler(req, res) {
       // continue anyway
     }
 
-    // 2) Prepare SMS message
-    const smsBody =
-      prompt && prompt.trim().length > 0
-        ? prompt // use user-provided prompt
-        : gf.welcome();
-
-    // 3) Send Twilio SMS welcome message
+    // 2) Send Twilio SMS welcome message
     try {
       await twilioClient.messages.create({
         from: FROM_NUMBER,
         to: phone,
-        body: smsBody
+        body: finalPrompt
       });
     } catch (smsErr) {
       console.error('Twilio send error:', smsErr);
     }
 
-    // 4) Store SMS message record
+    // 3) Store SMS message record
     const { error: msgInsertError } = await supabaseAdmin
       .from('messages')
       .insert([
@@ -98,7 +98,7 @@ export default async function handler(req, res) {
           girlfriend: gfKey,
           direction: 'outbound',
           channel: 'sms',
-          content: smsBody,
+          content: finalPrompt,
           created_at: new Date()
         }
       ]);
@@ -107,7 +107,7 @@ export default async function handler(req, res) {
       console.error('Supabase message insert error', msgInsertError);
     }
 
-    // 5) Call AI email sender API to send welcome email
+    // 4) Call AI email sender API to send welcome email
     try {
       const emailResponse = await fetch(
         `${process.env.NEXT_PUBLIC_BASE_URL}/api/send-ai-email`,
