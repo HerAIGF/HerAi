@@ -16,9 +16,9 @@ export default async function handler(req, res) {
         "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "dall-e-3",
+        model: "gpt-image-1",
         prompt,
-        size: "512x512",
+        size: "1024x1024"  // <-- updated size here
       }),
     });
 
