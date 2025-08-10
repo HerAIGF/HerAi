@@ -6,7 +6,7 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com', // or your SMTP provider
   port: 465,
-  secure: true,
+  secure: true, // true for port 465, false for others
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
@@ -32,10 +32,14 @@ async function generateEmailContent(name) {
           content: `Write a welcome email to a new user named ${name}, making it friendly and personal.`,
         },
       ],
+      max_tokens: 300,
     }),
   });
 
   const data = await response.json();
+  if (!data.choices || data.choices.length === 0) {
+    throw new Error('No content generated from OpenAI');
+  }
   return data.choices[0].message.content;
 }
 
@@ -54,7 +58,7 @@ export default async function handler(req, res) {
     const emailContent = await generateEmailContent(name);
 
     await transporter.sendMail({
-      from: '"Luna - Your AI Girlfriend" <luna@example.com>',
+      from: `"Luna - Your AI Girlfriend" <${process.env.SMTP_USER}>`,
       to: email,
       subject: 'Welcome to your AI Girlfriend experience!',
       text: emailContent,
@@ -66,3 +70,4 @@ export default async function handler(req, res) {
     res.status(500).json({ error: error.message });
   }
 }
+
