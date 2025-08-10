@@ -1,9 +1,9 @@
 import { useState } from 'react';
 
 const GIRLFRIEND_OPTIONS = [
-  { key: 'maya', label: 'Maya' },
-  { key: 'luna', label: 'Luna' },
-  { key: 'aria', label: 'Aria' },
+  { key: 'maya', label: 'Maya', prompt: 'You are Maya, a flirty, playful AI girlfriend.' },
+  { key: 'luna', label: 'Luna', prompt: 'You are Luna, a romantic, dreamy AI girlfriend.' },
+  { key: 'aria', label: 'Aria', prompt: 'You are Aria, a confident, adventurous AI girlfriend.' },
 ];
 
 export default function SignupTest() {
@@ -11,7 +11,7 @@ export default function SignupTest() {
     email: '',
     phone: '',
     instagram: '',
-    girlfriend: 'maya',
+    girlfriend: GIRLFRIEND_OPTIONS[0].key,
     ageConfirm: false,
     adultConsent: false,
   });
@@ -42,13 +42,20 @@ export default function SignupTest() {
       return;
     }
 
+    // Get prompt for selected girlfriend
+    const girlfriendObj = GIRLFRIEND_OPTIONS.find(g => g.key === formData.girlfriend);
+    const prompt = girlfriendObj ? girlfriendObj.prompt : '';
+
     setLoading(true);
 
     try {
       const res = await fetch('/api/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          prompt, // ✅ Send the required prompt
+        }),
       });
 
       if (!res.ok) {
@@ -61,7 +68,7 @@ export default function SignupTest() {
         email: '',
         phone: '',
         instagram: '',
-        girlfriend: 'maya',
+        girlfriend: GIRLFRIEND_OPTIONS[0].key,
         ageConfirm: false,
         adultConsent: false,
       });
