@@ -42,9 +42,10 @@ export default function SignupTest() {
       return;
     }
 
-    // Get prompt for selected girlfriend
-    const girlfriendObj = GIRLFRIEND_OPTIONS.find(g => g.key === formData.girlfriend);
-    const prompt = girlfriendObj ? girlfriendObj.prompt : '';
+    // ✅ Always get a safe prompt, fallback to Maya's
+    const girlfriendObj =
+      GIRLFRIEND_OPTIONS.find(g => g.key === formData.girlfriend) || GIRLFRIEND_OPTIONS[0];
+    const prompt = girlfriendObj.prompt;
 
     setLoading(true);
 
@@ -54,7 +55,7 @@ export default function SignupTest() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          prompt, // ✅ Send the required prompt
+          prompt, // ✅ Always sent
         }),
       });
 
